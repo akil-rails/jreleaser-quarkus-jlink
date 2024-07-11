@@ -1,6 +1,8 @@
 <?xml version="1.0"?>
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<project
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.acme</groupId>
   <artifactId>command-mode-quickstart</artifactId>
@@ -15,7 +17,31 @@
     <quarkus.platform.version>3.12.2</quarkus.platform.version>
     <skipITs>true</skipITs>
     <surefire-plugin.version>3.2.5</surefire-plugin.version>
+
+    <jreleaser-plugin.version>1.13.1</jreleaser-plugin.version>
+    <os-plugin.version>1.7.0</os-plugin.version>
   </properties>
+
+  <!-- jreleaser -->
+  <name>jrc</name>
+  <description>released with jreleaser</description>
+  <inceptionYear>2024</inceptionYear>
+  <url>https://acme.com</url>
+  <developers>
+    <developer>
+      <id>akil-rails</id>
+      <name>akil-rails</name>
+    </developer>
+  </developers>
+  <licenses>
+    <license>
+      <name>Apache-2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+  <!-- -->
+
   <dependencyManagement>
     <dependencies>
       <dependency>
@@ -34,10 +60,6 @@
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-rest</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5</artifactId>
       <scope>test</scope>
     </dependency>
@@ -48,6 +70,100 @@
     </dependency>
   </dependencies>
   <build>
+
+    <!-- jreleaser -->
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.7.1</version>
+      </extension>
+    </extensions>
+
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.jreleaser</groupId>
+          <artifactId>jreleaser-maven-plugin</artifactId>
+          <version>${jreleaser-plugin.version}</version>
+          <dependencies>
+            <dependency>
+              <groupId>commons-io</groupId>
+              <artifactId>commons-io</artifactId>
+              <version>2.16.1</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <jreleaser>
+              <environment>
+                <properties>
+                  <jdkFilePrefix>zulu21.28.85-ca-jdk21.0.0</jdkFilePrefix>
+                </properties>
+              </environment>
+              <assemble>
+                <jlink>
+                  <jrc>
+                    <active>ALWAYS</active>
+                    <java>
+                      <mainClass>io.quarkus.bootstrap.runner.QuarkusEntryPoint</mainClass>
+                    </java>
+                    <imageName>{{distributionName}}-{{projectVersion}}</imageName>
+                    <targetJdks>
+                      <targetJdk>
+                        <path>
+                          ${project.build.directory}/jdks/zulu17Osx/{{jdkFilePrefix}}-macosx_aarch64/zulu-21.jdk/Contents/Home</path>
+                        <platform>osx-aarch_64</platform>
+                      </targetJdk>
+                    </targetJdks>
+                    <copyJars>false</copyJars>
+                    <jdeps>
+                      <multiRelease>base</multiRelease>
+                      <ignoreMissingDeps>true</ignoreMissingDeps>
+                    </jdeps>
+                    <args>
+                      <arg>--bind-services</arg>
+                    </args>
+                    <mainJar>
+                      <path>${project.build.directory}/quarkus-app/quarkus-run.jar</path>
+                    </mainJar>
+                    <jars>
+                      <jar>
+                        <pattern>${project.build.directory}/quarkus-app/lib/**/*.jar</pattern>
+                      </jar>
+                    </jars>
+                    <fileSets>
+                      <fileSet>
+                        <input>${project.build.directory}/quarkus-app</input>
+                      </fileSet>
+                    </fileSets>
+                  </jrc>
+                </jlink>
+              </assemble>
+              <release>
+                <github>
+                  <tagName>{{projectVersion}}</tagName>
+                  <releaseName>{{projectVersion}}</releaseName>
+                  <overwrite>true</overwrite>
+                  <changelog>
+                    <formatted>ALWAYS</formatted>
+                    <preset>conventional-commits</preset>
+                    <format>- {{commitShortHash}} {{commitTitle}}</format>
+                    <contributors>
+                      <format>- {{contributorName}}</format>
+                    </contributors>
+                    <hide>
+                      <categories>merge</categories>
+                      <contributors>GitHub,dependabot</contributors>
+                    </hide>
+                  </changelog>
+                </github>
+              </release>
+            </jreleaser>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+    <!-- -->
     <plugins>
       <plugin>
         <groupId>${quarkus.platform.group-id}</groupId>
@@ -117,5 +233,74 @@
         <quarkus.package.type>native</quarkus.package.type>
       </properties>
     </profile>
+    <profile>
+      <id>assemble</id>
+      <properties>
+        <jreleaser.config.assembly>true</jreleaser.config.assembly>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.jreleaser</groupId>
+            <artifactId>jdks-maven-plugin</artifactId>
+            <version>${jreleaser-plugin.version}</version>
+            <configuration>
+              <pkgs>
+                <pkg>
+                  <name>zulu17Osx</name>
+                  <platform>osx-aarch64</platform>
+                  <version>${java.version}</version>
+                </pkg>
+              </pkgs>
+            </configuration>
+            <executions>
+              <execution>
+                <id>download-jdks</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>setup-disco</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.jreleaser</groupId>
+            <artifactId>jreleaser-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>assemble</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>assemble</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>    
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.jreleaser</groupId>
+            <artifactId>jreleaser-maven-plugin</artifactId>
+            <configuration>
+              <jreleaser>
+                <release>
+                  <github>
+                    <changelog>
+                      <formatted>ALWAYS</formatted>
+                      <preset>conventional-commits</preset>
+                    </changelog>
+                  </github>
+                </release>
+              </jreleaser>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>    
   </profiles>
 </project>
