@@ -134,6 +134,7 @@
                     <fileSets>
                       <fileSet>
                         <input>${project.build.directory}/quarkus-app</input>
+                        <output>./jars</output>
                       </fileSet>
                     </fileSets>
                   </jrc>
